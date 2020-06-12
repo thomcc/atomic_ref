@@ -76,7 +76,7 @@ use core::ptr::null_mut;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
 /// A mutable Option<&'a, T> type which can be safely shared between threads.
-#[repr(C)]
+#[repr(transparent)]
 pub struct AtomicRef<'a, T: 'a> {
     data: AtomicPtr<T>,
     // Make `AtomicRef` invariant over `'a` and `T`
