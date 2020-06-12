@@ -8,24 +8,20 @@
 //! correctly, synchronize updates between threads. This type is a form of
 //! interior mutability, like `Cell<T>`, `RefCell<T>`, or `Mutex<T>`.
 //!
-//! To store an atomic reference in a static variable, a the macro
-//! `static_atomic_ref!` must be used. A static initializer like
-//! `ATOMIC_REF_INIT` is not possible due to the need to be generic over any
-//! reference target type.
+//! To store an atomic reference in a static variable, you either use
+//! [`AtomicRef::static_some`] or [`AtomicRef::static_none`], depending if you
+//! have an initial value to assign to it or not.
 //!
 //! This type in static position is often used for lazy global initialization.
 //!
 //! `AtomicRef` may only contain `Sized` types, as unsized types have wide
 //! pointers which cannot be atomically written to or read from.
 //!
-//!
 //! # Examples
 //!
 //! Static logger state
 //!
 //! ```
-//! #[macro_use]
-//! extern crate atomic_ref;
 //! use atomic_ref::AtomicRef;
 //! use std::sync::atomic::Ordering;
 //! use std::io::{stdout, Write};
@@ -35,13 +31,13 @@
 //!     fn log(&self, msg: &str) {}
 //! }
 //! struct LoggerInfo {
-//!     logger: &'static (Logger + Sync)
+//!     logger: &'static (dyn Logger + Sync)
 //! }
 //!
 //! // The methods for working with our currently defined static logger
-//! static_atomic_ref! {
-//!     static LOGGER: AtomicRef<LoggerInfo>;
-//! }
+//!
+//! static LOGGER: AtomicRef<'static, LoggerInfo> = AtomicRef::static_none();
+//!
 //! fn log(msg: &str) -> bool {
 //!     if let Some(info) = LOGGER.load(Ordering::SeqCst) {
 //!         info.logger.log(msg);
@@ -85,73 +81,6 @@ pub struct AtomicRef<'a, T: 'a> {
     data: AtomicPtr<T>,
     // Make `AtomicRef` invariant over `'a` and `T`
     _marker: PhantomData<&'a mut &'a mut T>,
-}
-
-/// You will probably never need to use this type. It exists mostly for internal
-/// use in the `static_atomic_ref!` macro.
-///
-/// Unlike `AtomicUsize` and its ilk, we cannot have an `ATOMIC_REF_INIT` const
-/// which is initialized to `None`, as constants cannot be generic over a type
-/// parameter. This is the same reason why `AtomicPtr` does not have an
-/// `ATOMIC_PTR_INIT` const.
-///
-/// Instead, we have a single const for `&'static u8`, and take advantage of the
-/// fact that all AtomicRef types have identical layout to implement the
-/// `static_atomic_ref!` macro.
-///
-/// Please use `static_atomic_ref!` instead of this constant if you need to
-/// implement a static atomic reference variable.
-pub const ATOMIC_U8_REF_INIT: AtomicRef<'static, u8> = AtomicRef {
-    data: AtomicPtr::new(null_mut()),
-    _marker: PhantomData,
-};
-
-/// Re-export `core` for `static_atomic_ref!` (which may be used in a
-/// non-`no_std` crate, where `core` is unavailable).
-#[doc(hidden)]
-pub use core::{mem as core_mem, ops as core_ops};
-
-/// A macro to define a statically allocated `AtomicRef<'static, T>` which is
-/// initialized to `None`.
-///
-/// # Examples
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate atomic_ref;
-/// use std::sync::atomic::Ordering;
-///
-/// static_atomic_ref! {
-///     static SOME_REFERENCE: AtomicRef<i32>;
-///     pub static PUB_REFERENCE: AtomicRef<u64>;
-/// }
-///
-/// fn main() {
-///     let a: Option<&'static i32> = SOME_REFERENCE.load(Ordering::SeqCst);
-///     assert_eq!(a, None);
-/// }
-/// ```
-#[macro_export]
-macro_rules! static_atomic_ref {
-    ($(#[$attr:meta])* static $N:ident : AtomicRef<$T:ty>; $($t:tt)*) => {
-        static_atomic_ref!(@PRIV, $(#[$attr])* static $N : $T; $($t)*);
-    };
-    ($(#[$attr:meta])* pub static $N:ident : AtomicRef<$T:ty>; $($t:tt)*) => {
-        static_atomic_ref!(@PUB, $(#[$attr])* static $N : $T; $($t)*);
-    };
-    (@$VIS:ident, $(#[$attr:meta])* static $N:ident : $T:ty; $($t:tt)*) => {
-        static_atomic_ref!(@MAKE TY, $VIS, $(#[$attr])*, $N, $T);
-        static_atomic_ref!($($t)*);
-    };
-    (@MAKE TY, PUB, $(#[$attr:meta])*, $N:ident, $T:ty) => {
-        $(#[$attr])*
-        pub static $N: $crate::AtomicRef<'static, $T> = $crate::AtomicRef::static_none();
-    };
-    (@MAKE TY, PRIV, $(#[$attr:meta])*, $N:ident, $T:ty) => {
-        $(#[$attr])*
-        static $N: $crate::AtomicRef<'static, $T> = $crate::AtomicRef::static_none();
-    };
-    () => ();
 }
 
 /// An internal helper function for converting `Option<&'a T>` values to `*mut T`
@@ -461,11 +390,10 @@ impl<'a, T> Default for AtomicRef<'a, T> {
 
 #[cfg(test)]
 mod tests {
+    use super::AtomicRef;
     use core::sync::atomic::Ordering;
 
-    static_atomic_ref! {
-        static FOO: AtomicRef<i32>;
-    }
+    static FOO: AtomicRef<'static, i32> = AtomicRef::static_none();
 
     static A: i32 = 10;
 
@@ -477,7 +405,7 @@ mod tests {
         assert!(FOO.load(Ordering::SeqCst).unwrap() as *const _ == &A as *const _);
     }
 
-    static BAR: super::AtomicRef<'static, i32> = super::AtomicRef::static_some(&A);
+    static BAR: AtomicRef<'static, i32> = AtomicRef::static_some(&A);
 
     #[test]
     fn static_some() {
