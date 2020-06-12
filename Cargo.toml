@@ -9,5 +9,6 @@ documentation = "https://docs.rs/atomic_ref/"
 readme = "README.md"
 license = "MIT"
 keywords = ["atomic", "reference", "static"]
+edition = "2018"
 
 [dependencies]
