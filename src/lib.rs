@@ -23,15 +23,15 @@
 //!
 //! ```
 //! use atomic_ref::AtomicRef;
-//! use std::sync::atomic::Ordering;
 //! use std::io::{stdout, Write};
+//! use std::sync::atomic::Ordering;
 //!
 //! // Define the idea of a logger
 //! trait Logger {
 //!     fn log(&self, msg: &str) {}
 //! }
 //! struct LoggerInfo {
-//!     logger: &'static (dyn Logger + Sync)
+//!     logger: &'static (dyn Logger + Sync),
 //! }
 //!
 //! // The methods for working with our currently defined static logger
@@ -57,7 +57,9 @@
 //!         stdout().write(msg.as_bytes());
 //!     }
 //! }
-//! static STDOUT_LOGGER: LoggerInfo = LoggerInfo { logger: &StdoutLogger };
+//! static STDOUT_LOGGER: LoggerInfo = LoggerInfo {
+//!     logger: &StdoutLogger,
+//! };
 //!
 //! fn main() {
 //!     let res = log("This will fail");
@@ -178,8 +180,8 @@ impl<'a, T> AtomicRef<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::Ordering;
     /// use atomic_ref::AtomicRef;
+    /// use std::sync::atomic::Ordering;
     ///
     /// static VALUE: i32 = 10;
     ///
@@ -201,8 +203,8 @@ impl<'a, T> AtomicRef<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::Ordering;
     /// use atomic_ref::AtomicRef;
+    /// use std::sync::atomic::Ordering;
     ///
     /// static VALUE: i32 = 10;
     ///
@@ -220,8 +222,8 @@ impl<'a, T> AtomicRef<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::Ordering;
     /// use atomic_ref::AtomicRef;
+    /// use std::sync::atomic::Ordering;
     ///
     /// static VALUE: i32 = 10;
     /// static OTHER_VALUE: i32 = 20;
@@ -249,8 +251,8 @@ impl<'a, T> AtomicRef<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::Ordering;
     /// use atomic_ref::AtomicRef;
+    /// use std::sync::atomic::Ordering;
     ///
     /// static VALUE: i32 = 10;
     /// static OTHER_VALUE: i32 = 20;
@@ -292,15 +294,19 @@ impl<'a, T> AtomicRef<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::Ordering;
     /// use atomic_ref::AtomicRef;
+    /// use std::sync::atomic::Ordering;
     ///
     /// static VALUE: i32 = 10;
     /// static OTHER_VALUE: i32 = 20;
     ///
     /// let some_ptr = AtomicRef::new(Some(&VALUE));
-    /// let value = some_ptr.compare_exchange(Some(&OTHER_VALUE), None,
-    ///                                       Ordering::SeqCst, Ordering::Relaxed);
+    /// let value = some_ptr.compare_exchange(
+    ///     Some(&OTHER_VALUE),
+    ///     None,
+    ///     Ordering::SeqCst,
+    ///     Ordering::Relaxed,
+    /// );
     /// ```
     pub fn compare_exchange(
         &self,
@@ -336,8 +342,8 @@ impl<'a, T> AtomicRef<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// use std::sync::atomic::Ordering;
     /// use atomic_ref::AtomicRef;
+    /// use std::sync::atomic::Ordering;
     ///
     /// static VALUE: i32 = 10;
     /// static OTHER_VALUE: i32 = 20;
@@ -346,8 +352,8 @@ impl<'a, T> AtomicRef<'a, T> {
     ///
     /// let mut old = some_ptr.load(Ordering::Relaxed);
     /// loop {
-    ///     match some_ptr.compare_exchange_weak(old, Some(&VALUE),
-    ///                                          Ordering::SeqCst, Ordering::Relaxed) {
+    ///     match some_ptr.compare_exchange_weak(old, Some(&VALUE), Ordering::SeqCst, Ordering::Relaxed)
+    ///     {
     ///         Ok(_) => break,
     ///         Err(x) => old = x,
     ///     }
